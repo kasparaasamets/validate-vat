@@ -12,11 +12,12 @@ soapBodyTemplate = '''
   <soap:Header>
   </soap:Header>
   <soap:Body>
-    <tns1:checkVat xmlns:tns1="urn:ec.europa.eu:taxud:vies:services:checkVat:types"
+    <tns1:checkVatApprox xmlns:tns1="urn:ec.europa.eu:taxud:vies:services:checkVat:types"
      xmlns="urn:ec.europa.eu:taxud:vies:services:checkVat:types">
      <tns1:countryCode>_country_code_placeholder_</tns1:countryCode>
      <tns1:vatNumber>_vat_number_placeholder_</tns1:vatNumber>
-    </tns1:checkVat>
+    _requester_placeholder_
+    </tns1:checkVatApprox>
   </soap:Body>
 </soap:Envelope>
 '''
@@ -70,18 +71,26 @@ parseSoapResponse = (soapMessage) ->
       vatNumber: parseField 'vatNumber'
       requestDate: parseField 'requestDate'
       valid: parseField('valid') is 'true'
-      name: parseField 'name'
-      address: parseField('address').replace /\n/g, ', '
+      name: parseField 'traderName'
+      address: parseField('traderAddress').replace /\n/g, ', '
+      reqId: parseField('requestIdentifier')
 
   return ret
 
-module.exports = exports = (countryCode, vatNumber, callback) ->
-  if countryCode not in EU_COUNTRIES_CODES or !vatNumber?.length
+module.exports = exports = (params, callback) ->
+  if params.countryCode not in EU_COUNTRIES_CODES or !params.vatNumber?.length
     return process.nextTick -> callback new Error ERROR_MSG['INVALID_INPUT']
 
-  xml = soapBodyTemplate.replace('_country_code_placeholder_', countryCode)
-    .replace('_vat_number_placeholder_', vatNumber)
+  xml = soapBodyTemplate.replace('_country_code_placeholder_', params.countryCode)
+    .replace('_vat_number_placeholder_', params.vatNumber)
     .replace('\n', '').trim()
+
+  if params.requesterCountryCode or params.requesterVatNumber
+    xml = xml.replace('_requester_placeholder_',
+      '<tns1:requesterCountryCode>' + params.requesterCountryCode + '</tns1:requesterCountryCode>'
+      + '<tns1:requesterVatNumber>' + params.requesterVatNumber + '</tns1:requesterVatNumber>')
+  else
+    xml = xml.replace('_requester_placeholder_', '')
 
   headers['Content-Length'] = Buffer.byteLength xml, 'utf8'
 
