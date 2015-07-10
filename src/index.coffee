@@ -86,9 +86,9 @@ module.exports = exports = (params, callback) ->
     .replace('\n', '').trim()
 
   if params.requesterCountryCode or params.requesterVatNumber
-    xml = xml.replace('_requester_placeholder_',
-      '<tns1:requesterCountryCode>' + params.requesterCountryCode + '</tns1:requesterCountryCode>'
-      + '<tns1:requesterVatNumber>' + params.requesterVatNumber + '</tns1:requesterVatNumber>')
+    requesterXml = '<tns1:requesterCountryCode>' + params.requesterCountryCode + '</tns1:requesterCountryCode>' +
+      '<tns1:requesterVatNumber>' + params.requesterVatNumber + '</tns1:requesterVatNumber>'
+    xml = xml.replace('_requester_placeholder_', requesterXml)
   else
     xml = xml.replace('_requester_placeholder_', '')
 
