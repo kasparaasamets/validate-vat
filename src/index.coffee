@@ -23,7 +23,9 @@ soapBodyTemplate = '''
 '''
 
 EU_COUNTRIES_CODES = ['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'EL', 'HU',
-  'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'GB']
+                      'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'GB']
+
+SERVICE_ERRORS = ['SERVICE_UNAVAILABLE', 'MS_UNAVAILABLE', 'TIMEOUT', 'SERVER_BUSY', 'UNKNOWN']
 
 ERROR_MSG =
   'INVALID_INPUT': 'The provided CountryCode is invalid or the VAT number is empty'
@@ -82,8 +84,8 @@ module.exports = exports = (params, callback) ->
     return process.nextTick -> callback new Error ERROR_MSG['INVALID_INPUT']
 
   xml = soapBodyTemplate.replace('_country_code_placeholder_', params.countryCode)
-    .replace('_vat_number_placeholder_', params.vatNumber)
-    .replace('\n', '').trim()
+  .replace('_vat_number_placeholder_', params.vatNumber)
+  .replace('\n', '').trim()
 
   if params.requesterCountryCode or params.requesterVatNumber
     requesterXml = '<tns1:requesterCountryCode>' + params.requesterCountryCode + '</tns1:requesterCountryCode>' +
@@ -114,10 +116,18 @@ module.exports = exports = (params, callback) ->
 
       if data.faultString?.length
         err = new Error getReadableErrorMsg data.faultString
+        if SERVICE_ERRORS.indexOf(data.faultString)
+          err.isVatServiceError = true
         err.code = data.faultCode
         return callback err
 
       return callback null, data
+
+  if params.timeout
+    req.setTimeout params.timeout, ->
+      err = new Error(getReadableErrorMsg('TIMEOUT'))
+      err.isVatServiceError = true
+      callback err
 
   req.on 'error', callback
   req.write xml
